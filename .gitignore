@@ -1,0 +1,5 @@
+.DS_STORE
+.env
+node_modules
+cookies.json
+debug.png
