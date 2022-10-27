@@ -14,6 +14,9 @@ export default class FutPage {
     if (instance !== null) {
       return instance;
     }
+
+    // set useful selectors
+    this.pageTitleSelector = ".ut-navigation-bar-view h1.title";
   }
 
   async load() {
@@ -35,6 +38,7 @@ export default class FutPage {
 
   async login() {
     console.log("> Navigating to login page");
+    console.time("Login");
     const loginLink = "button.btn-standard.call-to-action:not(.disabled)";
     await this.page.waitForSelector(loginLink, { timeout: 10000 });
     await Promise.all([this.page.click(loginLink), this.page.waitForNavigation()]);
@@ -52,11 +56,13 @@ export default class FutPage {
     await Promise.all([this.page.click("a.otkbtn#logInBtn"), this.page.waitForNavigation()]);
     console.log("> Login done");
 
-    const teamNameSelector = "span.view-navbar-clubinfo-name";
     let needs2FA = false;
+    let pageTitleEl;
     try {
-      await this.page.waitForNavigation();
-      await this.page.waitForSelector(teamNameSelector, { timeout: 60 * 1000 });
+      [, pageTitleEl] = await Promise.all([
+        this.page.waitForNavigation(),
+        this.page.waitForSelector(this.pageTitleSelector, { timeout: 60 * 1000 }),
+      ]);
     } catch (e) {
       needs2FA = true;
     }
@@ -83,19 +89,70 @@ export default class FutPage {
       await Promise.all([this.page.click(submitCodeBtnSelector), this.page.waitForNavigation()]);
       console.log("> 2FA submitted...");
 
-      await this.page.waitForSelector(teamNameSelector, { timeout: 60 * 1000 });
+      pageTitleEl = await this.page.waitForSelector(this.pageTitleSelector, { timeout: 60 * 1000 });
       console.log("> App loaded. Saving cookies...");
 
       const cookies = await this.page.cookies();
       await writeCookies(cookies);
     }
 
-    const teamNameEl = await this.page.$(teamNameSelector);
-    const pageTitleEl = await this.page.$(".ut-navigation-bar-view h1.title");
-
-    const teamName = await teamNameEl.evaluate((el) => el.textContent);
     const pageName = await pageTitleEl.evaluate((el) => el.textContent);
-    console.log("> Dashboard loaded: \nURL: %s \nTeam: %s \nPage: %s", this.page.url(), teamName, pageName);
+    console.log("> Dashboard loaded: \nPage: %s", pageName);
+    console.timeEnd("Login");
+  }
+
+  async getTransferList() {
+    console.time("getTransferList");
+
+    console.log("> Opening transfer page");
+    await this.page.waitForSelector("div.ut-click-shield:not(.showing)");
+    await Promise.all([
+      this.page.click("button.ut-tab-bar-item.icon-transfer"),
+      // eslint-disable-next-line no-undef
+      this.page.waitForFunction((s) => document.querySelector(s).innerText.toLowerCase() === "transfers", {}, this.pageTitleSelector),
+    ]);
+    console.log("> Transfer page loaded");
+
+    // wait for loader
+    await this.page.waitForSelector("div.ut-click-shield:not(.showing)");
+
+    console.log("> Opening transfer list...");
+    const transferListSelector = "div.ut-tile-transfer-list:not(.disabled)";
+    await this.page.waitForSelector(transferListSelector);
+
+    await Promise.all([
+      this.page.click(transferListSelector),
+      // eslint-disable-next-line no-undef
+      this.page.waitForFunction((s) => document.querySelector(s).innerText.toLowerCase() === "transfer list", {}, this.pageTitleSelector),
+    ]);
+    console.log("> Transfer list loaded");
+
+    console.log("> Getting list of players");
+    const availableItemsXPathSelector =
+      '//section[@class="sectioned-item-list"][.//h2[@class="title"][text()="Available Items"]]/ul[@class="itemList"]/li';
+    const availableItems = await this.page.$x(availableItemsXPathSelector);
+
+    const playerDetails = await Promise.all([
+      ...availableItems.map(async (availableItem) => {
+        const nameEl = await availableItem.$(".entityContainer > .name");
+        const name = await nameEl.evaluate((el) => el.textContent);
+
+        // wait for card details to load
+        await availableItem.waitForSelector(".entityContainer > .ut-item-loaded");
+        const ratingEl = await availableItem.$(".entityContainer > .ut-item-loaded > .ut-item-view .playerOverview .rating");
+        const rating = await ratingEl.evaluate((el) => el.textContent);
+
+        const positionEl = await availableItem.$(".ut-item-loaded > .ut-item-view > .playerOverview .position");
+        const position = await positionEl.evaluate((el) => el.textContent);
+
+        return { name, rating, position };
+      }),
+    ]);
+
+    console.log("> Got list of players", playerDetails);
+    console.timeEnd("getTransferList");
+
+    return playerDetails;
   }
 
   async close() {

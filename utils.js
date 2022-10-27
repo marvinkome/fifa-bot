@@ -1,6 +1,6 @@
 import { promises as fs } from "fs";
 
-function wait(ms = 0) {
+export function wait(ms = 0) {
   return new Promise(function (resolve) {
     setTimeout(resolve, ms);
   });
@@ -9,6 +9,7 @@ function wait(ms = 0) {
 export async function screenshot(page, waitTime) {
   wait(waitTime);
 
+  console.log("📸 Taking screenshot 📸");
   const screenshot = await page.screenshot({ fullPage: true });
   await fs.writeFile("./debug.png", screenshot);
 }
