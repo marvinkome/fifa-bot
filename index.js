@@ -1,16 +1,27 @@
-import numeral from "numeral";
+import puppeteer from "puppeteer";
 import FutPage from "./fut.js";
-import FutBin from "./futbin.js";
 
 const futPage = new FutPage();
-// const futBin = new FutBin();
 
 const main = async () => {
-  await futPage.load();
+  let browser;
 
-  // await futBin.load();
-  // await futBin.getPlayerPrice({ name: "Haaland", position: "ST", rating: "88" });
+  try {
+    browser = await puppeteer.launch();
+    await futPage.load(browser);
+
+    const availableItems = await futPage.getTransferListItems();
+    await futPage.listPlayerOnTransferMarket(availableItems[0]);
+
+    // for (let availableItem of availableItems) {
+    //   // list player in market
+    // }
+  } catch (e) {
+    console.error(e);
+  } finally {
+    await futPage.close();
+    if (browser) await browser.close();
+  }
 };
 
 main();
-// .finally(() => futPage.close());
