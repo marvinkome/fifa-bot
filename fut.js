@@ -14,6 +14,7 @@ export default class FutPage {
     if (instance !== null) {
       return instance;
     }
+    instance = this;
 
     // set useful selectors
     this.pageTitleSelector = ".ut-navigation-bar-view h1.title";
@@ -46,7 +47,10 @@ export default class FutPage {
     // Wait for login form to show
     const loginEmailSelector = "div.otkinput input#email";
     const loginPasswordSelector = "div.otkinput input#password";
-    await Promise.race([this.page.waitForSelector(loginEmailSelector), this.page.waitForSelector(loginPasswordSelector)]);
+    await Promise.race([
+      this.page.waitForSelector(loginEmailSelector),
+      this.page.waitForSelector(loginPasswordSelector),
+    ]);
     console.log("> Login page loaded");
 
     await this.page.type(loginEmailSelector, process.env.FUT_EMAIL || "");
@@ -108,8 +112,12 @@ export default class FutPage {
     await this.page.waitForSelector("div.ut-click-shield:not(.showing)");
     await Promise.all([
       this.page.click("button.ut-tab-bar-item.icon-transfer"),
-      // eslint-disable-next-line no-undef
-      this.page.waitForFunction((s) => document.querySelector(s).innerText.toLowerCase() === "transfers", {}, this.pageTitleSelector),
+      this.page.waitForFunction(
+        // eslint-disable-next-line no-undef
+        (s) => document.querySelector(s).innerText.toLowerCase() === "transfers",
+        {},
+        this.pageTitleSelector
+      ),
     ]);
     console.log("> Transfer page loaded");
 
@@ -122,8 +130,13 @@ export default class FutPage {
 
     await Promise.all([
       this.page.click(transferListSelector),
-      // eslint-disable-next-line no-undef
-      this.page.waitForFunction((s) => document.querySelector(s).innerText.toLowerCase() === "transfer list", {}, this.pageTitleSelector),
+
+      this.page.waitForFunction(
+        // eslint-disable-next-line no-undef
+        (s) => document.querySelector(s).innerText.toLowerCase() === "transfer list",
+        {},
+        this.pageTitleSelector
+      ),
     ]);
     console.log("> Transfer list loaded");
 
@@ -139,7 +152,9 @@ export default class FutPage {
 
         // wait for card details to load
         await availableItem.waitForSelector(".entityContainer > .ut-item-loaded");
-        const ratingEl = await availableItem.$(".entityContainer > .ut-item-loaded > .ut-item-view .playerOverview .rating");
+        const ratingEl = await availableItem.$(
+          ".entityContainer > .ut-item-loaded > .ut-item-view .playerOverview .rating"
+        );
         const rating = await ratingEl.evaluate((el) => el.textContent);
 
         const positionEl = await availableItem.$(".ut-item-loaded > .ut-item-view > .playerOverview .position");
