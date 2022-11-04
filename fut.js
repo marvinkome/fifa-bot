@@ -163,6 +163,13 @@ export default class FutPage {
 
     console.log("FutPage: Fetched player details", { name, position, rating, price });
 
+    // configure player price
+    const isHighRated = parseInt(rating) > 83;
+    const prices = {
+      startPrice: isHighRated ? price : price - 50,
+      buyNowPrice: isHighRated ? price + 100 : price,
+    };
+
     // listing player on transfer market
     const detailedViewSelector =
       '//div[contains(@class, "DetailView")]' +
@@ -179,19 +186,17 @@ export default class FutPage {
       '//div[contains(@class, "DetailPanel")]//div[@class="panelActionRow"][.//span[text()="Start Price:"]]';
     const [startPriceEl] = await this.page.$x(startPriceSelector);
     const startPriceInput = await startPriceEl.$("input.ut-number-input-control");
-    const startPrice = price;
 
-    console.log("FutPage: Inputting start price for %s. Price: %i", name, startPrice);
-    await startPriceInput.type(`\n${startPrice}`, { delay: 100 });
+    console.log("FutPage: Inputting start price for %s. Price: %i", name, prices.startPrice);
+    await startPriceInput.type(`\n${prices.startPrice}`, { delay: 100 });
 
     const buyNowSelector =
       '//div[contains(@class, "DetailPanel")]//div[@class="panelActionRow"][.//span[text()="Buy Now Price:"]]';
     const [buyNowEl] = await this.page.$x(buyNowSelector);
     const buyNowInput = await buyNowEl.$("input.ut-number-input-control");
-    const buyNowPrice = price + 100;
 
-    console.log("FutPage: Inputting buy now price for %s. Price: %i", name, buyNowPrice);
-    await buyNowInput.type(`\n${buyNowPrice}`, { delay: 100 });
+    console.log("FutPage: Inputting buy now price for %s. Price: %i", name, prices.buyNowPrice);
+    await buyNowInput.type(`\n${prices.buyNowPrice}`, { delay: 100 });
 
     await Promise.all([
       this.page.click(".DetailPanel button.btn-standard.call-to-action"),
@@ -200,7 +205,7 @@ export default class FutPage {
       ),
     ]);
 
-    console.log("FutPage: Player listed on transfer market %s. Price: %j", name, { startPrice, buyNowPrice });
+    console.log("FutPage: Player listed on transfer market %s. Price: %j", name, prices);
   }
 
   async close() {
