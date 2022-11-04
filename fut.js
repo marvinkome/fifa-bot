@@ -139,31 +139,42 @@ export default class FutPage {
       '//section[@class="sectioned-item-list"][.//h2[@class="title"][text()="Available Items"]]/ul[@class="itemList"]/li';
     const availableItems = await this.page.$x(availableItemsXPathSelector);
 
+    const playerDetails = await Promise.all([
+      ...availableItems.map(async (availableItem) => {
+        const nameEl = await availableItem.$(".entityContainer > .name");
+        const name = await nameEl.evaluate((el) => el.textContent);
+
+        // wait for card details to load
+        await availableItem.waitForSelector(".entityContainer > .ut-item-loaded");
+        const ratingEl = await availableItem.$(
+          ".entityContainer > .ut-item-loaded > .ut-item-view .playerOverview .rating"
+        );
+        const rating = await ratingEl.evaluate((el) => el.textContent);
+
+        const positionEl = await availableItem.$(".ut-item-loaded > .ut-item-view > .playerOverview .position");
+        const position = await positionEl.evaluate((el) => el.textContent);
+
+        return { name, rating, position };
+      }),
+    ]);
+
     console.log("FutPage: Got list of players: Length - %s", availableItems.length);
     console.timeEnd("getTransferList");
 
-    return availableItems;
+    return playerDetails;
   }
 
-  async listPlayerOnTransferMarket() {
-    const availableItemSelector =
-      '//section[@class="sectioned-item-list"][.//h2[@class="title"][text()="Available Items"]]/ul[@class="itemList"]/li';
-    const [player] = await this.page.$x(availableItemSelector);
-
-    const nameEl = await player.$(".entityContainer > .name");
-    const name = await nameEl.evaluate((el) => el.textContent);
-
-    // wait for card details to load
-    await player.waitForSelector(".entityContainer > .ut-item-loaded");
-    const ratingEl = await player.$(".entityContainer > .ut-item-loaded > .ut-item-view .playerOverview .rating");
-    const rating = await ratingEl.evaluate((el) => el.textContent);
-
-    const positionEl = await player.$(".ut-item-loaded > .ut-item-view > .playerOverview .position");
-    const position = await positionEl.evaluate((el) => el.textContent);
+  async listPlayerOnTransferMarket({ name, position, rating }) {
+    const [item] = await this.page.$x(
+      '//section[@class="sectioned-item-list"][.//h2[@class="title"][text()="Available Items"]]' +
+        '/ul[@class="itemList"]/li' +
+        `[.//div[@class="name"][text()="${name}"]]` +
+        `[.//div[@class="rating"][text()="${rating}"]]` +
+        `[.//div[@class="position"][text()="${position}"]]`
+    );
 
     // get player price in futbin
     const price = await this.futBin.getPlayerPrice({ name, position, rating });
-
     console.log("FutPage: Fetched player details", { name, position, rating, price });
 
     // configure player price
@@ -179,7 +190,7 @@ export default class FutPage {
       `[.//div[contains(@class, "name")][contains(text(),"${name}")]]` +
       `[.//div[contains(@class, "rating")][text()="${rating}"]]` +
       `[.//div[contains(@class, "position")][text()="${position}"]]`;
-    await Promise.all([player.click(), this.page.waitForXPath(detailedViewSelector)]);
+    await Promise.all([item.click(), this.page.waitForXPath(detailedViewSelector)]);
     console.log("FutPage: %s - Player card selected", name);
 
     // open accordion

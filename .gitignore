@@ -3,4 +3,5 @@
 node_modules
 cookies.json
 *.cookies.json
+failed.json
 debug.png

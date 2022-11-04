@@ -23,11 +23,11 @@ export default class FutBin {
         await writeCookies(cookies, "./fb.cookies.json");
       }
 
-      await page.waitForSelector("table#repTb");
+      await page.waitForSelector("table#repTb", { timeout: 5 * 1000 });
       console.log("FutBin: %s - Results loaded", name);
 
       const playerXPathSelector = `//table[@id="repTb"]//tr[@data-url][.//a[contains(text(),"${name}")]][.//span[contains(@class, "rating")][text()="${rating}"]][.//div[text()="${position}"]]`;
-      await page.waitForXPath(playerXPathSelector);
+      await page.waitForXPath(playerXPathSelector, { timeout: 5 * 1000 });
       console.log("FutBin: %s - Result found", name);
 
       const [player] = await page.$x(playerXPathSelector);
