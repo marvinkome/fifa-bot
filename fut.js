@@ -146,7 +146,6 @@ export default class FutPage {
   }
 
   async listPlayerOnTransferMarket(player) {
-    console.time("listPlayerOnTransferMarket");
     const nameEl = await player.$(".entityContainer > .name");
     const name = await nameEl.evaluate((el) => el.textContent);
 
@@ -163,7 +162,45 @@ export default class FutPage {
     if (!price) return undefined;
 
     console.log("FutPage: Fetched player details", { name, position, rating, price });
-    console.time("listPlayerOnTransferMarket");
+
+    // listing player on transfer market
+    const detailedViewSelector =
+      '//div[contains(@class, "DetailView")]' +
+      `[.//div[contains(@class, "name")][contains(text(),"${name}")]]` +
+      `[.//div[contains(@class, "rating")][text()="${rating}"]]` +
+      `[.//div[contains(@class, "position")][text()="${position}"]]`;
+    await Promise.all([player.click(), this.page.waitForXPath(detailedViewSelector)]);
+    console.log("FutPage: %s - Player card selected", name);
+
+    // open accordion
+    await this.page.click(".DetailPanel button.accordian");
+
+    const startPriceSelector =
+      '//div[contains(@class, "DetailPanel")]//div[@class="panelActionRow"][.//span[text()="Start Price:"]]';
+    const [startPriceEl] = await this.page.$x(startPriceSelector);
+    const startPriceInput = await startPriceEl.$("input.ut-number-input-control");
+    const startPrice = price;
+
+    console.log("FutPage: Inputting start price for %s. Price: %i", name, startPrice);
+    await startPriceInput.type(`\n${startPrice}`, { delay: 100 });
+
+    const buyNowSelector =
+      '//div[contains(@class, "DetailPanel")]//div[@class="panelActionRow"][.//span[text()="Buy Now Price:"]]';
+    const [buyNowEl] = await this.page.$x(buyNowSelector);
+    const buyNowInput = await buyNowEl.$("input.ut-number-input-control");
+    const buyNowPrice = price + 100;
+
+    console.log("FutPage: Inputting buy now price for %s. Price: %i", name, buyNowPrice);
+    await buyNowInput.type(`\n${buyNowPrice}`, { delay: 100 });
+
+    await Promise.all([
+      this.page.click(".DetailPanel button.btn-standard.call-to-action"),
+      this.page.waitForXPath(
+        '//div[contains(@class, "DetailPanel")]//p[@class="tradeStatus"][text()="This Item is currently listed for Transfer."]'
+      ),
+    ]);
+
+    console.log("FutPage: Player listed on transfer market %s. Price: %j", name, { startPrice, buyNowPrice });
   }
 
   async close() {
