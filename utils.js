@@ -14,13 +14,17 @@ export async function screenshot(page, waitTime) {
   await fs.writeFile("./debug.png", screenshot);
 }
 
-export async function readCookies() {
-  const cookiesString = await fs.readFile("./cookies.json");
-  const cookies = JSON.parse(cookiesString);
+export async function readCookies(file) {
+  try {
+    const cookiesString = await fs.readFile(file);
+    const cookies = JSON.parse(cookiesString);
 
-  return cookies;
+    return cookies;
+  } catch (e) {
+    return null;
+  }
 }
 
-export async function writeCookies(cookies) {
-  await fs.writeFile("./cookies.json", JSON.stringify(cookies, null, 2));
+export async function writeCookies(cookies, file) {
+  await fs.writeFile(file, JSON.stringify(cookies, null, 2));
 }

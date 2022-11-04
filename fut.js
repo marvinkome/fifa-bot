@@ -24,7 +24,7 @@ export default class FutPage {
     console.log("FutPage: Loading page");
     this.page = await this.browser.newPage();
 
-    const cookies = await readCookies();
+    const cookies = await readCookies("./fut.cookies.json");
     await this.page.setCookie(...cookies);
 
     await this.page.goto("https://www.ea.com/fifa/ultimate-team/web-app/");
@@ -91,7 +91,7 @@ export default class FutPage {
       console.log("FutPage: App loaded. Saving cookies...");
 
       const cookies = await this.page.cookies();
-      await writeCookies(cookies);
+      await writeCookies(cookies, "./fut.cookies.json");
     }
 
     const pageName = await pageTitleEl.evaluate((el) => el.textContent);
@@ -145,7 +145,11 @@ export default class FutPage {
     return availableItems;
   }
 
-  async listPlayerOnTransferMarket(player) {
+  async listPlayerOnTransferMarket() {
+    const availableItemSelector =
+      '//section[@class="sectioned-item-list"][.//h2[@class="title"][text()="Available Items"]]/ul[@class="itemList"]/li';
+    const [player] = await this.page.$x(availableItemSelector);
+
     const nameEl = await player.$(".entityContainer > .name");
     const name = await nameEl.evaluate((el) => el.textContent);
 
@@ -159,7 +163,6 @@ export default class FutPage {
 
     // get player price in futbin
     const price = await this.futBin.getPlayerPrice({ name, position, rating });
-    if (!price) return undefined;
 
     console.log("FutPage: Fetched player details", { name, position, rating, price });
 
