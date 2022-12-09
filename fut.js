@@ -25,7 +25,7 @@ export default class FutPage {
     this.page = await this.browser.newPage();
 
     const cookies = await readCookies("./fut.cookies.json");
-    await this.page.setCookie(...cookies);
+    if(cookies) await this.page.setCookie(...cookies);
 
     await this.page.goto("https://www.ea.com/fifa/ultimate-team/web-app/");
     console.log("FutPage: Page loaded");
