@@ -25,7 +25,7 @@ export default class FutPage {
     this.page = await this.browser.newPage();
 
     const cookies = await readCookies("./fut.cookies.json");
-    await this.page.setCookie(...cookies);
+    if(cookies) await this.page.setCookie(...cookies);
 
     await this.page.goto("https://www.ea.com/fifa/ultimate-team/web-app/");
     console.log("FutPage: Page loaded");
@@ -87,11 +87,19 @@ export default class FutPage {
       await Promise.all([this.page.click(submitCodeBtnSelector), this.page.waitForNavigation()]);
       console.log("FutPage: 2FA submitted...");
 
-      pageTitleEl = await this.page.waitForSelector(this.pageTitleSelector, { timeout: 60 * 1000 });
-      console.log("FutPage: App loaded. Saving cookies...");
+      try {
+        pageTitleEl = await this.page.waitForSelector(this.pageTitleSelector, { timeout: 60 * 1000 });
+        console.log("FutPage: App loaded. Saving cookies...");
 
-      const cookies = await this.page.cookies();
-      await writeCookies(cookies, "./fut.cookies.json");
+        const cookies = await this.page.cookies();
+        await writeCookies(cookies, "./fut.cookies.json");
+      } catch (e) {
+        // if it fails we want to see the page html content
+        const pageContent = await this.page.content();
+
+        console.log(pageContent);
+        throw e
+      }
     }
 
     const pageName = await pageTitleEl.evaluate((el) => el.textContent);
@@ -173,23 +181,13 @@ export default class FutPage {
         `[.//div[@class="position"][text()="${position}"]]`
     );
 
-    // get player price in futbin
-    const price = await this.futBin.getPlayerPrice({ name, position, rating });
-    console.log("FutPage: Fetched player details", { name, position, rating, price });
-
-    // configure player price
-    const isHighRated = parseInt(rating) > 83;
-    const prices = {
-      startPrice: isHighRated ? price : price - 50,
-      buyNowPrice: isHighRated ? price + 100 : price,
-    };
-
-    // listing player on transfer market
     const detailedViewSelector =
       '//div[contains(@class, "DetailView")]' +
       `[.//div[contains(@class, "name")][contains(text(),"${name}")]]` +
       `[.//div[contains(@class, "rating")][text()="${rating}"]]` +
       `[.//div[contains(@class, "position")][text()="${position}"]]`;
+
+    // Open the player profile to get the FUT min and max prices
     await Promise.all([item.click(), this.page.waitForXPath(detailedViewSelector)]);
     console.log("FutPage: %s - Player card selected", name);
 
@@ -199,14 +197,59 @@ export default class FutPage {
     const startPriceSelector =
       '//div[contains(@class, "DetailPanel")]//div[@class="panelActionRow"][.//span[text()="Start Price:"]]';
     const [startPriceEl] = await this.page.$x(startPriceSelector);
+
+    const buyNowSelector =
+      '//div[contains(@class, "DetailPanel")]//div[@class="panelActionRow"][.//span[text()="Buy Now Price:"]]';
+    const [buyNowEl] = await this.page.$x(buyNowSelector);
+
+    // get player price in futbin
+    let price, prices
+    try {
+      price = await this.futBin.getPlayerPrice({ name, position, rating });
+
+      console.log("FutPage: Fetched player details", { name, position, rating, price });
+
+      // configure player price
+      const isHighRated = parseInt(rating) > 83;
+      prices = {
+        startPrice: isHighRated ? price : price - 50,
+        buyNowPrice: isHighRated ? price + 100 : price,
+      };
+    } catch (e) {
+      console.log('Failed to get FUTBIN Price, using default prices')
+      const futPriceSubSelector = ".buttonInfoLabel .currency-coins.bandingLabel"
+
+      const futMinPriceEl = await startPriceEl.$(futPriceSubSelector)
+      const futMinPrice = await futMinPriceEl.evaluate((el) => parseInt(el.textContent.split('Min: ')[1].split(',').join('')))
+
+      const futMaxPriceEl = await buyNowEl.$(futPriceSubSelector)
+      const futMaxPrice = await futMaxPriceEl.evaluate((el) => parseInt(el.textContent.split('Max: ')[1].split(',').join('')))
+
+      if (!prompt.started) prompt.start();
+      const { startPrice, buyNowPrice } = await prompt.get({
+        properties: {
+          startPrice: {
+            message: `Enter Start price (FUT Min Price: ${futMinPrice})`,
+          },
+          buyNowPrice: {
+            message: `Enter Buy now price (FUT Max Price: ${futMaxPrice})`,
+          },
+        },
+      });
+
+      prices = {
+        startPrice: startPrice || futMinPrice,
+        buyNowPrice: buyNowPrice || futMaxPrice,
+      };
+      console.log(prices)
+    }
+
+    // listing player on transfer market
     const startPriceInput = await startPriceEl.$("input.ut-number-input-control");
 
     console.log("FutPage: Inputting start price for %s. Price: %i", name, prices.startPrice);
     await startPriceInput.type(`\n${prices.startPrice}`, { delay: 100 });
 
-    const buyNowSelector =
-      '//div[contains(@class, "DetailPanel")]//div[@class="panelActionRow"][.//span[text()="Buy Now Price:"]]';
-    const [buyNowEl] = await this.page.$x(buyNowSelector);
     const buyNowInput = await buyNowEl.$("input.ut-number-input-control");
 
     console.log("FutPage: Inputting buy now price for %s. Price: %i", name, prices.buyNowPrice);
