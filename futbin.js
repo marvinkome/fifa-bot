@@ -31,7 +31,7 @@ export default class FutBin {
       console.log("FutBin: %s - Result found", name);
 
       const [player] = await page.$x(playerXPathSelector);
-      const playerPriceEl = await player.$("td:nth-of-type(6) span.ps4_color");
+      const playerPriceEl = await player.$("td:nth-of-type(6) span");
       let compactPrice = await playerPriceEl.evaluate((el) => el.textContent);
       console.log("FutBin: %s - Player price - %s", name, compactPrice);
 

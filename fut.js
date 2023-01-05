@@ -25,7 +25,7 @@ export default class FutPage {
     this.page = await this.browser.newPage();
 
     const cookies = await readCookies("./fut.cookies.json");
-    if(cookies) await this.page.setCookie(...cookies);
+    if (cookies) await this.page.setCookie(...cookies);
 
     await this.page.goto("https://www.ea.com/fifa/ultimate-team/web-app/");
     console.log("FutPage: Page loaded");
@@ -98,7 +98,7 @@ export default class FutPage {
         const pageContent = await this.page.content();
 
         console.log(pageContent);
-        throw e
+        throw e;
       }
     }
 
@@ -203,7 +203,7 @@ export default class FutPage {
     const [buyNowEl] = await this.page.$x(buyNowSelector);
 
     // get player price in futbin
-    let price, prices
+    let price, prices;
     try {
       price = await this.futBin.getPlayerPrice({ name, position, rating });
 
@@ -216,14 +216,18 @@ export default class FutPage {
         buyNowPrice: isHighRated ? price + 100 : price,
       };
     } catch (e) {
-      console.log('Failed to get FUTBIN Price, using default prices')
-      const futPriceSubSelector = ".buttonInfoLabel .currency-coins.bandingLabel"
+      console.log("Failed to get FUTBIN Price, using default prices");
+      const futPriceSubSelector = ".buttonInfoLabel .currency-coins.bandingLabel";
 
-      const futMinPriceEl = await startPriceEl.$(futPriceSubSelector)
-      const futMinPrice = await futMinPriceEl.evaluate((el) => parseInt(el.textContent.split('Min: ')[1].split(',').join('')))
+      const futMinPriceEl = await startPriceEl.$(futPriceSubSelector);
+      const futMinPrice = await futMinPriceEl.evaluate((el) =>
+        parseInt(el.textContent.split("Min: ")[1].split(",").join(""))
+      );
 
-      const futMaxPriceEl = await buyNowEl.$(futPriceSubSelector)
-      const futMaxPrice = await futMaxPriceEl.evaluate((el) => parseInt(el.textContent.split('Max: ')[1].split(',').join('')))
+      const futMaxPriceEl = await buyNowEl.$(futPriceSubSelector);
+      const futMaxPrice = await futMaxPriceEl.evaluate((el) =>
+        parseInt(el.textContent.split("Max: ")[1].split(",").join(""))
+      );
 
       if (!prompt.started) prompt.start();
       const { startPrice, buyNowPrice } = await prompt.get({
@@ -241,7 +245,6 @@ export default class FutPage {
         startPrice: startPrice || futMinPrice,
         buyNowPrice: buyNowPrice || futMaxPrice,
       };
-      console.log(prices)
     }
 
     // listing player on transfer market

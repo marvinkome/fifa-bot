@@ -27,7 +27,7 @@ const main = async () => {
         await futPage.listPlayerOnTransferMarket(player);
 
         console.log("Waiting....");
-        await wait(10 * 1000);
+        await wait(5 * 1000);
         console.log("Wait done...");
       } catch (e) {
         failedItems.push(player);
