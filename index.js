@@ -25,13 +25,12 @@ const main = async () => {
     const players = await fut.getTransferListItems();
     console.log("All players fetched. Total ", players.length);
 
-    const subset = players.slice(0, 3);
-    for (let player of subset) {
+    for (let player of players) {
       try {
         const data = await futBin
-          .getPlayerPrice({ name: player.fullName, position: player.position, rating: player.rating })
+          .getPlayerPrice({ name: player.name, position: player.position, rating: player.rating })
           .then((price) => {
-            console.log("Fetched player details", player);
+            console.log("Fetched player details: Player - %s; Prices: Buy Now %i, Start Bid %i;", player.name);
 
             const isHighRated = parseInt(player.rating) > HIGH_RATED_RATING;
             const prices = {
@@ -53,7 +52,7 @@ const main = async () => {
         }
 
         const { prices } = data;
-        console.log("Player price", { player, prices });
+        console.log("Player price: Player - %s; Prices: Buy Now %i, Start Bid %i;", player.name, prices.buyNowPrice, prices.startPrice);
 
         await fut.listItem({
           id: player.id,
