@@ -97,6 +97,7 @@ const credentials = {
   const pageTitleSelector = ".ut-navigation-bar-view h1.title";
   await Promise.all([
     page.click(transferMenuSelector),
+    // eslint-disable-next-line no-undef
     page.waitForFunction((s) => document.querySelector(s).innerText.toLowerCase() === "transfer list", {}, pageTitleSelector),
   ]);
   console.log("> Transfer page loaded");
