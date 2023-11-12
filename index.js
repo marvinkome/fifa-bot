@@ -30,7 +30,7 @@ function formatPrice(price) {
   return Math.round(price / 250) * 250;
 }
 
-const main = async () => {
+const main0 = async () => {
   let browser;
 
   try {
@@ -89,6 +89,17 @@ const main = async () => {
     console.error(e);
   } finally {
     if (browser) await browser.close();
+  }
+};
+
+const main = async () => {
+  try {
+    const fut = await new FUT().load();
+    if (!fut) throw new Error("Failed to load FUT");
+
+    await fut.getClubPlayerInventory();
+  } catch (e) {
+    console.log("Error", e.message);
   }
 };
 

@@ -87,6 +87,135 @@ export default class FUT {
     return storedInfo;
   };
 
+  getClubPlayerInventory = async () => {
+    if (!this.sid) throw new Error("Please call load() to setup session");
+
+    const allPlayers = await this.fetchAllClubPlayers();
+    if (!allPlayers.length) {
+      console.error("[fut][getClubPlayerInventory] failed to fetch all players");
+      return false;
+    }
+
+    const playersRatings = _.groupBy(allPlayers, "rating");
+    console.log("[fut][getClubPlayerInventory] players grouped by rating");
+
+    const ratingInventory = Object.keys(playersRatings).reduce((acc, rating) => {
+      const players = playersRatings[rating];
+      const playerCount = players.length;
+      return {
+        ...acc,
+        [rating]: playerCount,
+      };
+    }, {});
+
+    console.log({ ratingInventory });
+  };
+
+  fetchAllClubPlayers = async () => {
+    if (!this.sid) throw new Error("Please call load() to setup session");
+
+    const staticPlayers = await this.client
+      .get("https://www.ea.com/ea-sports-fc/ultimate-team/web-app/content/24B23FDE-7835-41C2-87A2-F453DFDB2E82/2024/fut/items/web/players.json")
+      .then((response) => {
+        const data = response.data;
+        return [...data.LegendsPlayers, ...data.Players];
+      });
+
+    if (!staticPlayers) {
+      console.error("[fut][fetchAllClubPlayers] failed to fetch static players json");
+      return [];
+    }
+    console.log("[fut][fetchAllClubPlayers] static players fetched");
+
+    const squadResponse = await this.client
+      .get("https://utas.mob.v1.fut.ea.com/ut/game/fc24/squad/active", {
+        headers: { "X-UT-SID": this.sid },
+        httpsAgent: new https.Agent({ rejectUnauthorized: false }),
+      })
+      .then((response) => response.data);
+
+    if (!squadResponse) {
+      console.error("[fut][fetchAllClubPlayers] failed to fetch active squad");
+      return [];
+    }
+
+    console.log("[fut][fetchAllClubPlayers] active squad fetched");
+    const playerIds = squadResponse.players.map((item) => item.itemData.resourceId);
+
+    console.log(playerIds.join(","));
+
+    let isComplete = false;
+    let retryCount = 0;
+    let currentBatch = 0;
+
+    let batchAmount = 250;
+    let currentOffset = 0;
+
+    let total = [];
+
+    while (!isComplete) {
+      try {
+        const response = await this.client.post(
+          "https://utas.mob.v2.fut.ea.com/ut/game/fc24/club",
+          {
+            type: "player",
+            excldef: playerIds.join(","),
+            count: batchAmount,
+            start: currentOffset,
+          },
+          {
+            headers: { "X-UT-SID": this.sid },
+            httpsAgent: new https.Agent({ rejectUnauthorized: false }),
+          }
+        );
+
+        const { itemData } = await response.data;
+
+        console.log(`[fut][fetchAllClubPlayers] players fetched %j`, {
+          batch: currentBatch,
+          count: itemData.length,
+        });
+
+        if (!(itemData || []).length) isComplete = true;
+
+        const players = itemData
+          .map((item) => {
+            if (item.loans) return null;
+
+            const player = staticPlayers.find((p) => p.id === item.assetId);
+            if (!player) return null;
+
+            return {
+              ...player,
+              ...item,
+            };
+          })
+          .filter(Boolean);
+
+        total.push(...players);
+
+        console.log(`[fut][fetchAllClubPlayers] current batch processed %j`, {
+          total: total.length,
+        });
+
+        // increment counters
+        currentOffset += itemData.length;
+        currentBatch++;
+
+        // reset retry count
+        retryCount = 0;
+        isComplete = true;
+      } catch (e) {
+        console.log(`[fut][fetchAllClubPlayers] failed to fetch for batch ${currentBatch}`, e.message);
+        retryCount++;
+
+        if (retryCount >= 3) break;
+      }
+    }
+
+    return total;
+  };
+
   getTransferListItems = async () => {
     if (!this.sid) throw new Error("Please call load() to setup session");
 

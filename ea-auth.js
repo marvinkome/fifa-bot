@@ -35,7 +35,7 @@ async function getLoginLocation() {
   const response = await client.get("https://accounts.ea.com/connect/auth", {
     params: {
       response_type: "token",
-      client_id: "FIFA23_JS_WEB_APP",
+      client_id: "FC24_JS_WEB_APP",
       release_type: "prod",
     },
   });
@@ -52,13 +52,14 @@ async function getLoginLocation() {
   };
 }
 
-async function trigger2FA(url, cookies) {
+async function trigger2FA(url, cookies, cred) {
   const client = axiosInstance();
   const response = await client.post(
     url,
     {
       codeType: "EMAIL",
       _eventId: "submit",
+      maskedDestination: cred.email,
     },
     {
       headers: {
@@ -165,7 +166,7 @@ export async function startLogin(cred) {
   }
 
   const twoFaURl = response.request.res.responseUrl;
-  const twoFaDetails = await trigger2FA(twoFaURl, cookies);
+  const twoFaDetails = await trigger2FA(twoFaURl, cookies, cred);
 
   console.log("[startLogin] 2FA code triggered");
   return { url: twoFaDetails, cookies };
@@ -181,7 +182,7 @@ export async function refreshAccessToken(accessToken, cookies) {
 
   const response = await client.get("https://accounts.ea.com/connect/auth", {
     params: {
-      client_id: "FIFA23_JS_WEB_APP",
+      client_id: "FC24_JS_WEB_APP",
       response_type: "token",
       hide_create: "true",
       redirect_uri: "https://www.ea.com/fifa/ultimate-team/web-app/auth.html",
@@ -244,11 +245,11 @@ export async function getSessionId(access_token) {
       },
     }),
 
-    client.get("https://utas.external.s2.fut.ea.com/ut/game/fifa23/v2/user/accountinfo", {
+    client.get("https://utas.external.s2.fut.ea.com/ut/game/fc24/v2/user/accountinfo", {
       params: {
         filterConsoleLogin: "true",
-        sku: "FUT23WEB",
-        returningUserGameYear: "2022",
+        sku: "FUT24WEB",
+        returningUserGameYear: "2023",
         clientVersion: "1",
       },
       headers: {
@@ -270,7 +271,7 @@ export async function getSessionId(access_token) {
     "https://utas.mob.v1.fut.ea.com/ut/auth",
     {
       clientVersion: 1,
-      gameSku: "FFA23PS5",
+      gameSku: "FFA24PS5",
       identification: {
         authCode: newCode,
         redirectUrl: "nucleus:rest",
@@ -280,7 +281,7 @@ export async function getSessionId(access_token) {
       method: "authcode",
       nucleusPersonaId: personaId,
       priorityLevel: 4,
-      sku: "FUT23WEB",
+      sku: "FUT24WEB",
     },
     {
       httpsAgent: new https.Agent({
